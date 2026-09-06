@@ -31,8 +31,8 @@ export default function LoginPage() {
         
         {/* Top Brand Banner */}
         <div className="text-center mb-8">
-          <div className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 items-center justify-center shadow-xl shadow-blue-500/25 mb-4 ring-4 ring-blue-500/10">
-            <Eye className="w-9 h-9 text-white" />
+          <div className="inline-flex items-center justify-center mb-3">
+            <img src="/logo.png" alt="3-Eyed Raven Logo" className="w-16 h-16 object-contain drop-shadow-md" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
             3-Eyed Raven Platform

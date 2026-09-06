@@ -24,6 +24,13 @@ export async function POST(request) {
     const db = getDb();
     const today = new Date().toISOString().split('T')[0];
 
+    // Auto-close any orphaned active sessions from previous days
+    db.prepare(`
+      UPDATE work_sessions
+      SET status = 'COMPLETED', end_time = CURRENT_TIMESTAMP
+      WHERE user_id = ? AND status = 'ACTIVE' AND date != ?
+    `).run(user.id, today);
+
     // Check if there's already an active session for this user today
     let activeSession = db.prepare(`
       SELECT * FROM work_sessions 

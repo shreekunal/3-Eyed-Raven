@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { getDb, purgeOldScreenshots } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
+import { uploadScreenshotToS3 } from '@/lib/storage';
 
 export async function POST(request) {
   try {
@@ -22,12 +23,26 @@ export async function POST(request) {
     }
 
     const db = getDb();
+
+    // Verify session belongs to user and is currently ACTIVE
+    const validSession = db.prepare(`
+      SELECT id FROM work_sessions
+      WHERE id = ? AND user_id = ? AND status = 'ACTIVE'
+    `).get(session_id, user.id);
+
+    if (!validSession) {
+      return NextResponse.json({ error: 'Unauthorized or invalid active session' }, { status: 403 });
+    }
+
     const screenshotId = `sc-${crypto.randomUUID()}`;
+
+    // Upload to Supabase S3 Cloud Storage bucket
+    const finalImageUrl = await uploadScreenshotToS3(image_data, screenshotId);
 
     db.prepare(`
       INSERT INTO screenshots (id, session_id, user_id, captured_at, image_data, width, height)
       VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
-    `).run(screenshotId, session_id, user.id, image_data, width, height);
+    `).run(screenshotId, session_id, user.id, finalImageUrl, width, height);
 
     // Auto-purge screenshots older than 24 hours
     const purged = purgeOldScreenshots(24);

@@ -11,6 +11,7 @@
     "db:reset": "node scripts/reset.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1127.0",
     "@base-ui/react": "^1.8.0",
     "@radix-ui/react-select": "^2.3.7",
     "bcryptjs": "^2.4.3",

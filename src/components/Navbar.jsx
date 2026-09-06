@@ -16,9 +16,7 @@ export default function Navbar() {
         
         {/* Brand */}
         <Link href={user?.role === 'ADMIN' ? '/admin' : '/dashboard'} className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
-            <Eye className="w-5 h-5 text-white" />
-          </div>
+          <img src="/logo.png" alt="3-Eyed Raven Logo" className="w-9 h-9 object-contain group-hover:scale-105 transition-transform" />
           <span className="font-bold tracking-tight text-slate-900 dark:text-white">3-Eyed Raven</span>
         </Link>
 

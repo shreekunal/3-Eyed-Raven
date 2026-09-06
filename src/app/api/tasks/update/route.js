@@ -29,9 +29,21 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    // Check permission: Admin, Sheet Owner, or Team Sheet
-    if (user.role !== 'ADMIN' && task.sheet_owner !== user.id && task.sheet_type !== 'TEAM') {
-      return NextResponse.json({ error: 'Permission denied for this task' }, { status: 403 });
+    // Check permission: Admin, Sheet Owner, or Assigned Employee in Team Sheet
+    if (user.role !== 'ADMIN' && task.sheet_owner !== user.id) {
+      if (task.sheet_type !== 'TEAM') {
+        return NextResponse.json({ error: 'Permission denied for this task' }, { status: 403 });
+      }
+      // For Team Sheets, regular employees can only edit tasks assigned to their name or empid
+      const isAssignedToUser = 
+        task.assignee === user.name || 
+        task.assignee === user.empid ||
+        task.assignee.toLowerCase() === user.name.toLowerCase() ||
+        task.assignee.toLowerCase() === user.empid.toLowerCase();
+      
+      if (!isAssignedToUser) {
+        return NextResponse.json({ error: 'Permission denied. You can only update tasks assigned to you.' }, { status: 403 });
+      }
     }
 
     let nextProgress = typeof progress_percent === 'number' 

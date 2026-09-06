@@ -20,6 +20,15 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Please select an Excel file (.xlsx, .xls) to upload' }, { status: 400 });
     }
 
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Excel file size exceeds 5MB limit. Please upload a smaller file.' }, { status: 400 });
+    }
+
+    const fileName = file.name || '';
+    if (!/\.(xlsx|xls)$/i.test(fileName)) {
+      return NextResponse.json({ error: 'Invalid file format. Only Excel spreadsheets (.xlsx, .xls) are allowed.' }, { status: 400 });
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 

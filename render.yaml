@@ -21,3 +21,15 @@ services:
         value: 3000
       - key: JWT_SECRET
         generateValue: true
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: S3_ENDPOINT
+        value: https://xmoijbwuizxsgrpnidgg.storage.supabase.co/storage/v1/s3
+      - key: S3_ACCESS_KEY_ID
+        value: 0168e890d6b143fe6deb64109ebbfce2
+      - key: S3_SECRET_ACCESS_KEY
+        value: ecbf20cc0659c5e171bc48cbe0ac3cebdfc809dca621dd0a9816ca414053ef52
+      - key: S3_BUCKET
+        value: 3-Eyed-Raven
+      - key: S3_REGION
+        value: us-east-1

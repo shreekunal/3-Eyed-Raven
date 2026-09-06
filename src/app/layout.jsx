@@ -10,6 +10,10 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 export const metadata = {
   title: '3-Eyed Raven | Employee Monitoring & Productivity',
   description: 'Automated 24-hr rolling screen capture, screen time tracking, and Excel task management',
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({ children }) {

@@ -174,6 +174,14 @@ export default function AdminPage() {
       fetchUsers();
       fetchSettings();
       fetchTasks();
+
+      // Auto-refresh admin live workforce telemetry every 30 seconds
+      const pollInterval = setInterval(() => {
+        fetchUsers();
+        fetchSettings();
+      }, 30000);
+
+      return () => clearInterval(pollInterval);
     }
   }, [user, fetchUsers, fetchSettings, fetchTasks]);
 

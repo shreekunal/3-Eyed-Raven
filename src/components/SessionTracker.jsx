@@ -1,17 +1,19 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, Monitor, Clock, ShieldAlert, CheckCircle, RefreshCw, Smartphone } from 'lucide-react';
+import { Play, Square, Monitor, Clock, ShieldAlert, CheckCircle, RefreshCw, Smartphone, Pause, Layers } from 'lucide-react';
 
 export default function SessionTracker({ onSessionUpdate }) {
   const [session, setSession] = useState(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [secondsElapsed, setSecondsElapsed] = useState(0);
   const [intervalMinutes, setIntervalMinutes] = useState(30);
   const [lastCaptureTime, setLastCaptureTime] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isDuplicateTab, setIsDuplicateTab] = useState(false);
 
   const streamRef = useRef(null);
   const videoRef = useRef(null);
@@ -19,6 +21,37 @@ export default function SessionTracker({ onSessionUpdate }) {
   const timerIntervalRef = useRef(null);
   const heartbeatIntervalRef = useRef(null);
   const captureIntervalRef = useRef(null);
+  const broadcastChannelRef = useRef(null);
+
+  // 1. Multi-Tab Lock Detection via BroadcastChannel
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        const channel = new BroadcastChannel('raven_telemetry_tab_channel');
+        broadcastChannelRef.current = channel;
+
+        const tabId = Math.random().toString(36).substring(7);
+
+        channel.onmessage = (event) => {
+          if (event.data?.type === 'CLAIM_ACTIVE_TAB') {
+            channel.postMessage({ type: 'TAB_ALREADY_ACTIVE', from: tabId });
+          } else if (event.data?.type === 'TAB_ALREADY_ACTIVE') {
+            setIsDuplicateTab(true);
+          }
+        };
+
+        channel.postMessage({ type: 'CLAIM_ACTIVE_TAB', tabId });
+      }
+    } catch (e) {
+      console.error('BroadcastChannel not supported', e);
+    }
+
+    return () => {
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.close();
+      }
+    };
+  }, []);
 
   // Mobile Device Guard Detection
   useEffect(() => {
@@ -70,7 +103,7 @@ export default function SessionTracker({ onSessionUpdate }) {
 
   // Live seconds stopwatch with timestamp drift correction & background visibility sync
   useEffect(() => {
-    if (isStreaming && session) {
+    if (isStreaming && session && !isPaused) {
       if (!shiftStartTimeRef.current) {
         shiftStartTimeRef.current = Date.now();
         initialCumulativeRef.current = secondsElapsed;
@@ -100,11 +133,11 @@ export default function SessionTracker({ onSessionUpdate }) {
       shiftStartTimeRef.current = null;
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     }
-  }, [isStreaming, session]);
+  }, [isStreaming, session, isPaused]);
 
-  // Setup periodic capture & heartbeat once streaming starts
+  // Setup periodic capture & heartbeat once streaming starts (paused when on break)
   useEffect(() => {
-    if (isStreaming && session) {
+    if (isStreaming && session && !isPaused) {
       // 1. Heartbeat every 30 seconds
       heartbeatIntervalRef.current = setInterval(async () => {
         try {
@@ -130,7 +163,7 @@ export default function SessionTracker({ onSessionUpdate }) {
         captureAndUploadScreenshot();
       }, ms);
 
-      // Also trigger an initial capture 5 seconds after starting work to verify flow
+      // Trigger initial capture 5 seconds after starting work
       const initialCaptureTimer = setTimeout(() => {
         captureAndUploadScreenshot();
       }, 5000);
@@ -141,7 +174,50 @@ export default function SessionTracker({ onSessionUpdate }) {
         clearTimeout(initialCaptureTimer);
       };
     }
-  }, [isStreaming, session, intervalMinutes]);
+  }, [isStreaming, session, isPaused, intervalMinutes]);
+
+  // Send beacon to end session if user closes tab abruptly
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (session && isStreaming) {
+        navigator.sendBeacon('/api/session/end', JSON.stringify({ session_id: session.id }));
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [session, isStreaming]);
+
+  const togglePauseShift = async () => {
+    if (!session) return;
+    setLoading(true);
+    const nextAction = isPaused ? 'resume' : 'pause';
+    try {
+      const res = await fetch('/api/session/pause', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: session.id, action: nextAction }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIsPaused(!isPaused);
+        setSession(data.session);
+        if (nextAction === 'pause') {
+          stopAllIntervals();
+          shiftStartTimeRef.current = null;
+          setStatusMessage('Shift paused for break. Timer and telemetry monitoring paused.');
+        } else {
+          shiftStartTimeRef.current = Date.now();
+          initialCumulativeRef.current = secondsElapsed;
+          setStatusMessage('Shift resumed! Work telemetry active.');
+        }
+        if (onSessionUpdate) onSessionUpdate();
+      }
+    } catch (e) {
+      console.error('Failed to toggle pause', e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const startWorkShift = async () => {
     setLoading(true);
@@ -291,6 +367,19 @@ export default function SessionTracker({ onSessionUpdate }) {
       <video ref={videoRef} autoPlay playsInline muted className="hidden" />
       <canvas ref={canvasRef} className="hidden" />
 
+      {/* Duplicate Tab Lock Alert */}
+      {isDuplicateTab && (
+        <div className="mb-4 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-xl p-3.5 flex items-start gap-3 text-blue-800 dark:text-blue-300">
+          <Layers className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+          <div className="text-xs space-y-1">
+            <p className="font-bold text-sm">Active in Another Browser Tab</p>
+            <p>
+              Shift tracking is already active in another browser tab. Multi-tab lock prevents double-counting shift time across open tabs.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Mobile Device Restriction Alert */}
       {isMobile && (
         <div className="mb-4 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-xl p-3.5 flex items-start gap-3 text-amber-800 dark:text-amber-300">
@@ -310,7 +399,9 @@ export default function SessionTracker({ onSessionUpdate }) {
         <div className="flex items-center gap-4">
           <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
             isStreaming 
-              ? 'bg-emerald-500/10 text-emerald-500 ring-2 ring-emerald-500/20' 
+              ? isPaused
+                ? 'bg-amber-500/10 text-amber-500 ring-2 ring-amber-500/20'
+                : 'bg-emerald-500/10 text-emerald-500 ring-2 ring-emerald-500/20' 
               : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
           }`}>
             <Monitor className="w-6 h-6" />
@@ -322,10 +413,17 @@ export default function SessionTracker({ onSessionUpdate }) {
                 Work Shift Status:
               </h3>
               {isStreaming ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 animate-pulse">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  Active & Monitored
-                </span>
+                isPaused ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    Shift Paused (On Break)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 animate-pulse">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    Active &amp; Monitored
+                  </span>
+                )
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
                   Inactive (Clocked Out)
@@ -359,15 +457,29 @@ export default function SessionTracker({ onSessionUpdate }) {
           {!isStreaming ? (
             <button
               onClick={startWorkShift}
-              disabled={loading || isMobile}
+              disabled={loading || isMobile || isDuplicateTab}
               title={isMobile ? "Shift clock-in requires a desktop browser" : "Start shift & share screen"}
               className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm shadow-md shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Play className="w-4 h-4 fill-white" />
-              <span>{isMobile ? "Desktop Required to Start" : "Start Work & Share Screen"}</span>
+              <span>{isMobile ? "Desktop Required to Start" : isDuplicateTab ? "Active in Another Tab" : "Start Work & Share Screen"}</span>
             </button>
           ) : (
             <div className="flex items-center gap-2 w-full md:w-auto">
+              <button
+                onClick={togglePauseShift}
+                disabled={loading}
+                title={isPaused ? "Resume shift monitoring" : "Pause shift for lunch or break"}
+                className={`inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl font-medium text-xs shadow-sm transition-all cursor-pointer ${
+                  isPaused
+                    ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 hover:bg-amber-200 border border-amber-200 dark:border-amber-800'
+                }`}
+              >
+                {isPaused ? <Play className="w-3.5 h-3.5 fill-white" /> : <Pause className="w-3.5 h-3.5" />}
+                <span>{isPaused ? 'Resume Shift' : 'Take Break'}</span>
+              </button>
+
               <button
                 onClick={captureAndUploadScreenshot}
                 title="Trigger immediate snapshot test"
@@ -375,13 +487,14 @@ export default function SessionTracker({ onSessionUpdate }) {
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
+
               <button
                 onClick={endWorkShift}
                 disabled={loading}
-                className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-medium text-sm shadow-md shadow-red-600/20 transition-all cursor-pointer disabled:opacity-60"
+                className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-medium text-xs shadow-md shadow-red-600/20 transition-all cursor-pointer disabled:opacity-60"
               >
                 <Square className="w-4 h-4 fill-white" />
-                <span>Clock Out / End Work</span>
+                <span>Clock Out</span>
               </button>
             </div>
           )}

@@ -6,6 +6,7 @@ import {
   Clock, AlertTriangle, ChevronDown, Save, Plus, FileUp, Sparkles,
   Users, User
 } from 'lucide-react';
+import ShadcnSelect from '@/components/ShadcnSelect';
 
 export default function TaskDataTable({ initialSheetId = null, isAdmin = false }) {
   const [sheets, setSheets] = useState([]);
@@ -178,19 +179,14 @@ export default function TaskDataTable({ initialSheetId = null, isAdmin = false }
 
           {/* Sheet Dropdown */}
           {sheets.length > 0 && (
-            <div className="relative">
-              <select
-                value={activeSheetId || ''}
-                onChange={(e) => setActiveSheetId(e.target.value)}
-                className="pl-3 pr-8 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-              >
-                {sheets.map(s => (
-                  <option key={s.id} value={s.id}>
-                    {s.title} ({s.sheet_type === 'TEAM' ? 'Team Sheet' : 'Personal'}) • {s.total_tasks} Tasks
-                  </option>
-                ))}
-              </select>
-            </div>
+            <ShadcnSelect
+              value={activeSheetId || ''}
+              onChange={(e) => setActiveSheetId(e.target.value)}
+              options={sheets.map(s => ({
+                value: s.id,
+                label: `${s.title} (${s.sheet_type === 'TEAM' ? 'Team Sheet' : 'Personal'}) • ${s.total_tasks} Tasks`
+              }))}
+            />
           )}
         </div>
 
@@ -247,30 +243,32 @@ export default function TaskDataTable({ initialSheetId = null, isAdmin = false }
         {/* Severity and Status Selectors */}
         <div className="flex items-center gap-2">
           {/* Status filter */}
-          <select
+          <ShadcnSelect
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs focus:outline-none cursor-pointer"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="Pending">Pending</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Completed">Completed</option>
-            <option value="Blocked">Blocked</option>
-          </select>
+            size="sm"
+            options={[
+              { value: 'ALL', label: 'All Statuses' },
+              { value: 'Pending', label: 'Pending' },
+              { value: 'In Progress', label: 'In Progress' },
+              { value: 'Completed', label: 'Completed' },
+              { value: 'Blocked', label: 'Blocked' },
+            ]}
+          />
 
           {/* Severity filter */}
-          <select
+          <ShadcnSelect
             value={severityFilter}
             onChange={(e) => setSeverityFilter(e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs focus:outline-none cursor-pointer"
-          >
-            <option value="ALL">All Severities</option>
-            <option value="Critical">Critical</option>
-            <option value="High">High</option>
-            <option value="Medium">Medium</option>
-            <option value="Low">Low</option>
-          </select>
+            size="sm"
+            options={[
+              { value: 'ALL', label: 'All Severities' },
+              { value: 'Critical', label: 'Critical' },
+              { value: 'High', label: 'High' },
+              { value: 'Medium', label: 'Medium' },
+              { value: 'Low', label: 'Low' },
+            ]}
+          />
         </div>
       </div>
 
@@ -337,16 +335,17 @@ export default function TaskDataTable({ initialSheetId = null, isAdmin = false }
 
                   {/* Status Dropdown */}
                   <td className="py-2.5 px-3 whitespace-nowrap">
-                    <select
+                    <ShadcnSelect
                       value={t.status}
                       onChange={(e) => handleUpdateTask(t.id, { status: e.target.value })}
-                      className="px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[11px] font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer"
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="In Progress">In Progress</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Blocked">Blocked</option>
-                    </select>
+                      size="sm"
+                      options={[
+                        { value: 'Pending', label: 'Pending' },
+                        { value: 'In Progress', label: 'In Progress' },
+                        { value: 'Completed', label: 'Completed' },
+                        { value: 'Blocked', label: 'Blocked' },
+                      ]}
+                    />
                   </td>
 
                   {/* Deadline */}

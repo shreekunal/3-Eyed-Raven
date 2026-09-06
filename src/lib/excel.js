@@ -10,43 +10,8 @@ export const EXCEL_COLUMNS = [
 ];
 
 export function generateSampleTemplateBuffer() {
-  const sampleData = [
-    {
-      'Task ID': 'TSK-101',
-      'Task Title': 'Design Core Dashboard Layout & Navigation',
-      'Assignee': 'EMP001',
-      'Status': 'In Progress',
-      'Severity': 'High',
-      'Deadline': '2026-09-10'
-    },
-    {
-      'Task ID': 'TSK-102',
-      'Task Title': 'Implement Periodic Screen Capture Service',
-      'Assignee': 'EMP001',
-      'Status': 'Pending',
-      'Severity': 'Critical',
-      'Deadline': '2026-09-12'
-    },
-    {
-      'Task ID': 'TSK-103',
-      'Task Title': 'Setup SQLite 24-Hour Auto-Purge Worker',
-      'Assignee': 'EMP001',
-      'Status': 'Completed',
-      'Severity': 'Medium',
-      'Deadline': '2026-09-08'
-    },
-    {
-      'Task ID': 'TSK-104',
-      'Task Title': 'Validate Excel Ingestion & Export Engine',
-      'Assignee': 'EMP001',
-      'Status': 'Pending',
-      'Severity': 'Low',
-      'Deadline': '2026-09-15'
-    }
-  ];
-
-  const worksheet = XLSX.utils.json_to_sheet(sampleData, { header: EXCEL_COLUMNS });
-  // Set column widths
+  // Headers only — no sample rows
+  const worksheet = XLSX.utils.aoa_to_sheet([EXCEL_COLUMNS]);
   worksheet['!cols'] = [
     { wch: 12 },
     { wch: 45 },

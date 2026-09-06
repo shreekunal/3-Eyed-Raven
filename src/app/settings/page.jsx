@@ -7,7 +7,7 @@ import UserModal from '@/components/UserModal';
 import ShadcnSelect from '@/components/ShadcnSelect';
 import {
   Settings, KeyRound, SlidersHorizontal, Users, Database,
-  Trash2, UserPlus, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff
+  Trash2, UserPlus, Loader2, CheckCircle2, AlertCircle, Eye, EyeOff, ChevronDown
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -171,7 +171,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Settings Card */}
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
 
         {/* Tab bar for Admin / Single header for Employee */}
         <div className="px-5 pt-5">
@@ -235,12 +235,12 @@ export default function SettingsPage() {
                     onChange={e => setIntervalValue(Number(e.target.value))}
                     disabled={settingsLoading}
                     className="flex-1"
-                    options={[1, 5, 10, 15, 30, 60, 120].map(v => ({ value: v, label: `${v} ${v === 1 ? 'minute' : 'minutes'}` }))}
+                    options={[10, 15, 30, 60].map(v => ({ value: v, label: `${v} ${v === 1 ? 'minute' : 'minutes'}` }))}
                   />
                   <button
                     onClick={saveInterval}
                     disabled={savingInterval || settingsLoading}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium shadow-md shadow-blue-600/20 disabled:opacity-60 flex items-center gap-1.5"
+                    className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium shadow-md shadow-blue-600/20 disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
                   >
                     {savingInterval ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Settings className="w-3.5 h-3.5" />}
                     Apply

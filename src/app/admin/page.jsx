@@ -612,7 +612,7 @@ export default function AdminPage() {
                   <ShadcnSelect
                     value={timelineUserId}
                     onChange={e => handleTimelineUserChange(e.target.value)}
-                    placeholder="— Select Employee —"
+                    placeholder="Select Employee"
                     className="w-full sm:w-auto"
                     options={employees.map(emp => ({ value: emp.id, label: `${emp.name} (${emp.empid})` }))}
                   />

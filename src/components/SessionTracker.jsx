@@ -151,6 +151,10 @@ export default function SessionTracker({ onSessionUpdate }) {
             if (data.capture_interval_minutes && data.capture_interval_minutes !== intervalMinutes) {
               setIntervalMinutes(data.capture_interval_minutes);
             }
+            if (data.force_capture) {
+              setStatusMessage('On-demand admin snapshot signal received. Capturing screen frame...');
+              captureAndUploadScreenshot();
+            }
           }
         } catch (err) {
           console.error('Heartbeat failed', err);
@@ -233,12 +237,34 @@ export default function SessionTracker({ onSessionUpdate }) {
         audio: false,
       });
 
+      const videoTrack = stream.getVideoTracks()[0];
+      const settings = videoTrack?.getSettings?.() || {};
+
+      // Enforce Entire Screen policy: Reject tab or window selection
+      if (settings.displaySurface && settings.displaySurface !== 'monitor') {
+        stream.getTracks().forEach(track => track.stop());
+        throw new Error('Compliance Requirement: You must select "Entire Screen" (Monitor) to start your work shift. Individual window or tab sharing is not permitted.');
+      }
+
       streamRef.current = stream;
 
-      // Handle user stopping stream from browser UI
-      stream.getVideoTracks()[0].onended = () => {
+      // Auto-pause session when stream is stopped or ended by browser toolbar
+      videoTrack.onended = async () => {
         setIsStreaming(false);
-        setStatusMessage('Screen sharing was paused or stopped by browser toolbar. Re-start shift to resume monitoring.');
+        stopAllIntervals();
+        setStatusMessage('Screen sharing was stopped via browser controls. Work shift paused.');
+        if (session) {
+          try {
+            await fetch('/api/session/pause', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ session_id: session.id, action: 'pause' }),
+            });
+            setIsPaused(true);
+          } catch (e) {
+            console.error('Failed to auto-pause session', e);
+          }
+        }
       };
 
       // Connect to hidden video element

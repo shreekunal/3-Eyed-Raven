@@ -24,11 +24,12 @@ export async function POST(request) {
     const db = getDb();
     const today = new Date().toISOString().split('T')[0];
 
-    // Auto-close any orphaned active sessions from previous days
+    // Auto-close any orphaned active sessions from previous days OR stale active sessions (> 5 minutes without heartbeat)
     db.prepare(`
       UPDATE work_sessions
       SET status = 'COMPLETED', end_time = CURRENT_TIMESTAMP
-      WHERE user_id = ? AND status = 'ACTIVE' AND date != ?
+      WHERE user_id = ? AND status = 'ACTIVE' 
+      AND (date != ? OR (last_heartbeat IS NOT NULL AND datetime(last_heartbeat, '+5 minutes') < datetime('now')))
     `).run(user.id, today);
 
     // Check if there's already an active session for this user today
@@ -41,8 +42,8 @@ export async function POST(request) {
     if (!activeSession) {
       const sessionId = `sess-${crypto.randomUUID()}`;
       db.prepare(`
-        INSERT INTO work_sessions (id, user_id, start_time, duration_seconds, date, status)
-        VALUES (?, ?, CURRENT_TIMESTAMP, 0, ?, 'ACTIVE')
+        INSERT INTO work_sessions (id, user_id, start_time, duration_seconds, date, status, last_heartbeat)
+        VALUES (?, ?, CURRENT_TIMESTAMP, 0, ?, 'ACTIVE', CURRENT_TIMESTAMP)
       `).run(sessionId, user.id, today);
 
       activeSession = db.prepare('SELECT * FROM work_sessions WHERE id = ?').get(sessionId);

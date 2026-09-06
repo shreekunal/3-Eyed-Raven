@@ -104,6 +104,29 @@ export default function AdminPage() {
   const [tasksLoading, setTasksLoading] = useState(true);
 
   const [selectedShot, setSelectedShot] = useState(null);
+  const [requestingSnapshot, setRequestingSnapshot] = useState({});
+
+  const triggerInstantSnapshot = async (targetUserId) => {
+    setRequestingSnapshot(prev => ({ ...prev, [targetUserId]: true }));
+    try {
+      const res = await fetch('/api/screenshots/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_user_id: targetUserId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message || 'On-demand snapshot requested!');
+        fetchUsers();
+      } else {
+        alert(data.error || 'Failed to trigger snapshot');
+      }
+    } catch (err) {
+      alert('Error triggering snapshot');
+    } finally {
+      setRequestingSnapshot(prev => ({ ...prev, [targetUserId]: false }));
+    }
+  };
 
   // Load custom sidebar preferences from localStorage
   useEffect(() => {
@@ -515,9 +538,22 @@ export default function AdminPage() {
                               </span>
                             </div>
                           </div>
-                          <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700 flex-shrink-0">
-                            <Camera className="w-3 h-3" />
-                            {emp.screenshot_count}
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            {isActive && (
+                              <button
+                                onClick={() => triggerInstantSnapshot(emp.id)}
+                                disabled={requestingSnapshot[emp.id]}
+                                title="Request On-Demand Instant Snapshot"
+                                className="flex items-center gap-1 text-[10px] text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 px-2 py-0.5 rounded-lg border border-blue-200 dark:border-blue-800 transition-colors cursor-pointer disabled:opacity-50"
+                              >
+                                <Camera className="w-3 h-3 text-blue-500 animate-pulse" />
+                                <span>{requestingSnapshot[emp.id] ? 'Requesting...' : 'Capture'}</span>
+                              </button>
+                            )}
+                            <div className="flex items-center gap-1 text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                              <Camera className="w-3 h-3" />
+                              {emp.screenshot_count}
+                            </div>
                           </div>
                         </div>
 

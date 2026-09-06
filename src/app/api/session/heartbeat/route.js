@@ -27,11 +27,19 @@ export async function POST(request) {
       return NextResponse.json({ error: 'No active session found' }, { status: 404 });
     }
 
-    // Increment duration
-    const safeIncrement = Math.min(Math.max(1, parseInt(increment_seconds, 10)), 300);
+    // Rate-limiting check: Reject heartbeats sent less than 10 seconds apart to prevent replay attacks
+    if (session.last_heartbeat) {
+      const secondsSinceLast = (Date.now() - new Date(session.last_heartbeat).getTime()) / 1000;
+      if (secondsSinceLast < 10) {
+        return NextResponse.json({ error: 'Heartbeat rate limit exceeded. Requests must be at least 10 seconds apart.' }, { status: 429 });
+      }
+    }
+
+    // Increment duration and update last_heartbeat timestamp
+    const safeIncrement = Math.min(Math.max(1, parseInt(increment_seconds, 10)), 35);
     db.prepare(`
       UPDATE work_sessions 
-      SET duration_seconds = duration_seconds + ? 
+      SET duration_seconds = duration_seconds + ?, last_heartbeat = CURRENT_TIMESTAMP 
       WHERE id = ?
     `).run(safeIncrement, session_id);
 
@@ -39,6 +47,23 @@ export async function POST(request) {
 
     // Opportunistic rolling 24-hour cleanup
     purgeOldScreenshots(24);
+
+    // Check if an admin requested an on-demand instant snapshot for this user
+    let forceCapture = false;
+    const pendingReq = db.prepare(`
+      SELECT id FROM pending_screenshot_requests
+      WHERE user_id = ? AND status = 'PENDING'
+      ORDER BY created_at DESC LIMIT 1
+    `).get(user.id);
+
+    if (pendingReq) {
+      forceCapture = true;
+      db.prepare(`
+        UPDATE pending_screenshot_requests
+        SET status = 'FULFILLED'
+        WHERE id = ?
+      `).run(pendingReq.id);
+    }
 
     // Fetch latest capture interval in case admin updated it
     const intervalRow = db.prepare('SELECT value FROM settings WHERE key = ?').get('capture_interval_minutes');
@@ -48,6 +73,7 @@ export async function POST(request) {
       success: true,
       duration_seconds: updated.duration_seconds,
       capture_interval_minutes: intervalMinutes,
+      force_capture: forceCapture,
     });
   } catch (error) {
     console.error('Error during session heartbeat:', error);

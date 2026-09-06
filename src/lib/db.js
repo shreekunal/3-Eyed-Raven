@@ -54,6 +54,7 @@ function initSchema(db) {
       duration_seconds INTEGER DEFAULT 0,
       date TEXT NOT NULL,
       status TEXT DEFAULT 'ACTIVE',
+      last_heartbeat DATETIME,
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -66,6 +67,15 @@ function initSchema(db) {
       width INTEGER,
       height INTEGER,
       FOREIGN KEY(session_id) REFERENCES work_sessions(id) ON DELETE CASCADE,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS pending_screenshot_requests (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      requested_by TEXT NOT NULL,
+      status TEXT DEFAULT 'PENDING',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -97,6 +107,13 @@ function initSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_sessions_user_date ON work_sessions(user_id, date);
     CREATE INDEX IF NOT EXISTS idx_tasks_sheet ON tasks(sheet_id);
   `);
+
+  // Safe migration for existing databases missing last_heartbeat column
+  try {
+    db.exec(`ALTER TABLE work_sessions ADD COLUMN last_heartbeat DATETIME`);
+  } catch (e) {
+    // Column already exists
+  }
 
   // Seed default settings
   const settingCheck = db.prepare('SELECT value FROM settings WHERE key = ?').get('capture_interval_minutes');

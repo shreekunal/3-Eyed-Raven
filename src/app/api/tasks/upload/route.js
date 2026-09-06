@@ -13,7 +13,10 @@ export async function POST(request) {
 
     const formData = await request.formData();
     const file = formData.get('file');
-    const sheetType = formData.get('sheet_type') || 'INDIVIDUAL';
+    let sheetType = formData.get('sheet_type') || 'INDIVIDUAL';
+    if (user.role !== 'ADMIN') {
+      sheetType = 'INDIVIDUAL'; // Non-admins can only create individual sheets
+    }
     const customTitle = formData.get('title');
 
     if (!file || typeof file === 'string') {

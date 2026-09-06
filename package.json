@@ -1,6 +1,7 @@
 {
   "name": "three-eyed-raven",
   "version": "1.0.0",
+  "author": "Kunal (shreekunal)",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",

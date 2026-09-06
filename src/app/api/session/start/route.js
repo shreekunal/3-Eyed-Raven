@@ -30,6 +30,14 @@ export async function POST(request) {
       activeSession = db.prepare('SELECT * FROM work_sessions WHERE id = ?').get(sessionId);
     }
 
+    // Calculate cumulative total seconds worked today so far
+    const todayRow = db.prepare(`
+      SELECT SUM(duration_seconds) as total_seconds 
+      FROM work_sessions 
+      WHERE user_id = ? AND date = ?
+    `).get(user.id, today);
+    const todayCumulativeSeconds = todayRow?.total_seconds || 0;
+
     // Fetch current capture interval
     const intervalRow = db.prepare('SELECT value FROM settings WHERE key = ?').get('capture_interval_minutes');
     const intervalMinutes = parseInt(intervalRow?.value || '30', 10);
@@ -37,6 +45,7 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       session: activeSession,
+      today_cumulative_seconds: todayCumulativeSeconds,
       capture_interval_minutes: intervalMinutes,
     });
   } catch (error) {

@@ -35,9 +35,11 @@ export default function SessionTracker({ onSessionUpdate }) {
       const res = await fetch('/api/session/stats');
       if (res.ok) {
         const data = await res.json();
+        if (data.today) {
+          setSecondsElapsed(data.today.seconds || 0);
+        }
         if (data.active_session) {
           setSession(data.active_session);
-          setSecondsElapsed(data.active_session.duration_seconds || 0);
         }
       }
     } catch (e) {
@@ -143,7 +145,7 @@ export default function SessionTracker({ onSessionUpdate }) {
       }
 
       setSession(data.session);
-      setSecondsElapsed(data.session.duration_seconds || 0);
+      setSecondsElapsed(data.today_cumulative_seconds ?? data.session.duration_seconds ?? 0);
       setIntervalMinutes(data.capture_interval_minutes || 30);
       setIsStreaming(true);
       setStatusMessage('Shift started! Screen is monitored in accordance with workspace policy.');
@@ -285,10 +287,13 @@ export default function SessionTracker({ onSessionUpdate }) {
 
             {/* Timer Counter */}
             <div className="flex items-center gap-3 mt-1">
-              <div className="flex items-center gap-1 text-slate-700 dark:text-slate-200 font-mono text-xl font-bold tracking-tight">
+              <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200 font-mono text-xl font-bold tracking-tight">
                 <Clock className="w-4 h-4 text-blue-500" />
                 <span>{formatTimer(secondsElapsed)}</span>
               </div>
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                Today Cumulative
+              </span>
               <span className="text-xs text-slate-400">
                 • Interval: <span className="font-medium text-slate-600 dark:text-slate-300">{intervalMinutes}m</span>
               </span>

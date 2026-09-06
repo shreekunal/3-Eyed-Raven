@@ -23,6 +23,15 @@ function formatDuration(seconds) {
   return `${h}h ${m}m`;
 }
 
+function formatCapturedTime(dateStr) {
+  if (!dateStr) return '';
+  let iso = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
+  if (!iso.endsWith('Z') && !iso.includes('+') && !iso.includes('-')) {
+    iso += 'Z';
+  }
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 function severityClass(s) {
   switch (s) {
     case 'Critical': return 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 border border-red-200 dark:border-red-900';
@@ -524,7 +533,7 @@ export default function AdminPage() {
                               image_data: emp.latest_screenshot,
                               user_name: emp.name,
                               user_empid: emp.empid,
-                              captured_at: new Date().toISOString(),
+                              captured_at: emp.latest_screenshot_captured_at || new Date().toISOString(),
                               width: null, height: null,
                             })}
                             className="relative w-full aspect-video rounded-lg sm:rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 group cursor-pointer"
@@ -613,7 +622,7 @@ export default function AdminPage() {
                       />
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors" />
                       <span className="absolute bottom-0 left-0 right-0 text-[10px] text-white bg-black/60 px-1.5 py-1 text-center truncate">
-                        {new Date(shot.captured_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {formatCapturedTime(shot.captured_at)}
                       </span>
                     </button>
                   ))}

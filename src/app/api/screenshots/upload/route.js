@@ -41,8 +41,8 @@ export async function POST(request) {
 
     db.prepare(`
       INSERT INTO screenshots (id, session_id, user_id, captured_at, image_data, width, height)
-      VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
-    `).run(screenshotId, session_id, user.id, finalImageUrl, width, height);
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(screenshotId, session_id, user.id, new Date().toISOString(), finalImageUrl, width, height);
 
     // Auto-purge screenshots older than 24 hours
     const purged = purgeOldScreenshots(24);

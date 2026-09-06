@@ -41,7 +41,12 @@ export async function GET(request) {
           SELECT s.image_data FROM screenshots s 
           WHERE s.user_id = u.id 
           ORDER BY s.captured_at DESC LIMIT 1
-        ) as latest_screenshot
+        ) as latest_screenshot,
+        (
+          SELECT s.captured_at FROM screenshots s 
+          WHERE s.user_id = u.id 
+          ORDER BY s.captured_at DESC LIMIT 1
+        ) as latest_screenshot_captured_at
       FROM users u
       ORDER BY u.role ASC, u.name ASC
     `).all(today, today);

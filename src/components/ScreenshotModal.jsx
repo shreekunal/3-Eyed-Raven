@@ -3,6 +3,15 @@
 import React from 'react';
 import { X, Clock, User, Download, ExternalLink } from 'lucide-react';
 
+function formatCapturedTime(dateStr) {
+  if (!dateStr) return '';
+  let iso = dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T');
+  if (!iso.endsWith('Z') && !iso.includes('+') && !iso.includes('-')) {
+    iso += 'Z';
+  }
+  return new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+}
+
 export default function ScreenshotModal({ screenshot, onClose }) {
   if (!screenshot) return null;
 
@@ -36,7 +45,7 @@ export default function ScreenshotModal({ screenshot, onClose }) {
               </div>
               <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
                 <Clock className="w-3 h-3 text-slate-500" />
-                <span>Captured at: {new Date(screenshot.captured_at).toLocaleString()}</span>
+                <span>Captured at: {formatCapturedTime(screenshot.captured_at)}</span>
               </p>
             </div>
           </div>

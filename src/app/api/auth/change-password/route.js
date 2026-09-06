@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import { getDb } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request) {
   try {
     const user = await getSessionUser(request);

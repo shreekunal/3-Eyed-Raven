@@ -255,21 +255,6 @@ for (const emp of sampleEmpData) {
     date: today,
     status: emp.status === 'ACTIVE' ? 'ACTIVE' : 'COMPLETED'
   });
-
-  emp.shots.forEach((shot, index) => {
-    const capturedAt = new Date(Date.now() - shot.minsAgo * 60 * 1000).toISOString();
-    const imageData  = createMockScreenshotSvg(shot.title, shot.subtitle, shot.color);
-    
-    insertShot.run({
-      id: `shot-${emp.name.toLowerCase()}-${index + 1}`,
-      session_id: sessionId,
-      user_id: emp.userId,
-      captured_at: capturedAt,
-      image_data: imageData,
-      width: 1280,
-      height: 720
-    });
-  });
 }
 
 // ── Sample Task Sheet & Tasks ─────────────────────────────────────────────────

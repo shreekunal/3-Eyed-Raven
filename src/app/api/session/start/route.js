@@ -10,6 +10,17 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // ── Mobile Device Detection Guard ──────────────────────────────────────────
+    const userAgent = request.headers.get('user-agent') || '';
+    const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS/i.test(userAgent);
+    
+    if (isMobileUserAgent) {
+      return NextResponse.json(
+        { error: 'Mobile devices are not allowed for work shift clock-in. Please log in from a desktop browser (Windows, macOS, or Linux).' },
+        { status: 403 }
+      );
+    }
+
     const db = getDb();
     const today = new Date().toISOString().split('T')[0];
 

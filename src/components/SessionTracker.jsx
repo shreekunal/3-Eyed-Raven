@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, Monitor, Clock, ShieldAlert, CheckCircle, RefreshCw } from 'lucide-react';
+import { Play, Square, Monitor, Clock, ShieldAlert, CheckCircle, RefreshCw, Smartphone } from 'lucide-react';
 
 export default function SessionTracker({ onSessionUpdate }) {
   const [session, setSession] = useState(null);
@@ -11,6 +11,7 @@ export default function SessionTracker({ onSessionUpdate }) {
   const [lastCaptureTime, setLastCaptureTime] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const streamRef = useRef(null);
   const videoRef = useRef(null);
@@ -18,6 +19,17 @@ export default function SessionTracker({ onSessionUpdate }) {
   const timerIntervalRef = useRef(null);
   const heartbeatIntervalRef = useRef(null);
   const captureIntervalRef = useRef(null);
+
+  // Mobile Device Guard Detection
+  useEffect(() => {
+    const checkMobile = () => {
+      const ua = navigator.userAgent || '';
+      const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS/i;
+      const hasTouchSpoof = navigator.maxTouchPoints > 1 && /Macintosh/i.test(ua);
+      setIsMobile(mobileRegex.test(ua) || hasTouchSpoof);
+    };
+    checkMobile();
+  }, []);
 
   // Check active session on mount
   useEffect(() => {
@@ -53,18 +65,41 @@ export default function SessionTracker({ onSessionUpdate }) {
     if (captureIntervalRef.current) clearInterval(captureIntervalRef.current);
   };
 
-  // Live seconds stopwatch
+  const shiftStartTimeRef = useRef(null);
+  const initialCumulativeRef = useRef(0);
+
+  // Live seconds stopwatch with timestamp drift correction & background visibility sync
   useEffect(() => {
     if (isStreaming && session) {
-      timerIntervalRef.current = setInterval(() => {
-        setSecondsElapsed(prev => prev + 1);
-      }, 1000);
+      if (!shiftStartTimeRef.current) {
+        shiftStartTimeRef.current = Date.now();
+        initialCumulativeRef.current = secondsElapsed;
+      }
+
+      const updateExactTimer = () => {
+        if (!shiftStartTimeRef.current) return;
+        const elapsedSecs = Math.floor((Date.now() - shiftStartTimeRef.current) / 1000);
+        setSecondsElapsed(initialCumulativeRef.current + elapsedSecs);
+      };
+
+      timerIntervalRef.current = setInterval(updateExactTimer, 1000);
+
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          updateExactTimer();
+        }
+      };
+
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      return () => {
+        if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      };
     } else {
+      shiftStartTimeRef.current = null;
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     }
-    return () => {
-      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-    };
   }, [isStreaming, session]);
 
   // Setup periodic capture & heartbeat once streaming starts
@@ -250,11 +285,24 @@ export default function SessionTracker({ onSessionUpdate }) {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-sm">
       
       {/* Hidden elements used for stream processing */}
       <video ref={videoRef} autoPlay playsInline muted className="hidden" />
       <canvas ref={canvasRef} className="hidden" />
+
+      {/* Mobile Device Restriction Alert */}
+      {isMobile && (
+        <div className="mb-4 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-xl p-3.5 flex items-start gap-3 text-amber-800 dark:text-amber-300">
+          <Smartphone className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="text-xs space-y-1">
+            <p className="font-bold text-sm">Desktop Browser Required</p>
+            <p>
+              Work shift clock-in and telemetry monitoring require a desktop browser (Windows, macOS, or Linux). Shift clock-in is restricted on mobile devices to ensure complete screen audit compliance.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         
@@ -286,7 +334,7 @@ export default function SessionTracker({ onSessionUpdate }) {
             </div>
 
             {/* Timer Counter */}
-            <div className="flex items-center gap-3 mt-1">
+            <div className="flex items-center gap-3 mt-1 flex-wrap">
               <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200 font-mono text-xl font-bold tracking-tight">
                 <Clock className="w-4 h-4 text-blue-500" />
                 <span>{formatTimer(secondsElapsed)}</span>
@@ -311,11 +359,12 @@ export default function SessionTracker({ onSessionUpdate }) {
           {!isStreaming ? (
             <button
               onClick={startWorkShift}
-              disabled={loading}
-              className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm shadow-md shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-60"
+              disabled={loading || isMobile}
+              title={isMobile ? "Shift clock-in requires a desktop browser" : "Start shift & share screen"}
+              className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm shadow-md shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Play className="w-4 h-4 fill-white" />
-              <span>Start Work & Share Screen</span>
+              <span>{isMobile ? "Desktop Required to Start" : "Start Work & Share Screen"}</span>
             </button>
           ) : (
             <div className="flex items-center gap-2 w-full md:w-auto">

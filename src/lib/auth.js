@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { getDb } from './db';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'three-eyed-raven-super-secret-key-2026-secure';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 export function signToken(user) {
   return jwt.sign(

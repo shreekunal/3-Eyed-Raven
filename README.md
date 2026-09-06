@@ -39,7 +39,7 @@
 ## 🗂️ Project Structure
 
 ```
-Three-Eyed Raven/
+3-Eyed Raven/
 ├── public/
 │   ├── logo.png                      # Application branding
 │   └── favicon.ico
@@ -100,7 +100,7 @@ Three-Eyed Raven/
 
 ```bash
 git clone <repo-url>
-cd Three-Eyed-Raven
+cd 3-Eyed-Raven
 npm install
 ```
 
@@ -110,7 +110,7 @@ Create `.env.local` in the root directory:
 
 ```env
 PORT=3000
-JWT_SECRET=three-eyed-raven-super-secret-key-2026-secure
+JWT_SECRET=3-eyed-raven-super-secret-key-2026-secure
 
 # Supabase S3 Storage Credentials
 STORAGE_DRIVER=s3

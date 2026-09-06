@@ -3,7 +3,7 @@
 
 services:
   - type: web
-    name: three-eyed-raven
+    name: 3-eyed-raven
     env: node
     plan: starter
     region: singapore

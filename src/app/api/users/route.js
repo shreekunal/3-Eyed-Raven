@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { getDb } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
+import { resolveScreenshotUrl } from '@/lib/storage';
 
 export async function GET(request) {
   try {
@@ -14,7 +15,7 @@ export async function GET(request) {
     const db = getDb();
     const today = new Date().toISOString().split('T')[0];
 
-    const users = db.prepare(`
+    const rawUsers = db.prepare(`
       SELECT 
         u.id, 
         u.name, 
@@ -44,6 +45,13 @@ export async function GET(request) {
       FROM users u
       ORDER BY u.role ASC, u.name ASC
     `).all(today, today);
+
+    const users = await Promise.all(
+      rawUsers.map(async (u) => ({
+        ...u,
+        latest_screenshot: await resolveScreenshotUrl(u.latest_screenshot),
+      }))
+    );
 
     return NextResponse.json({ users });
   } catch (error) {

@@ -1,4 +1,5 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const s3Endpoint = process.env.S3_ENDPOINT || 'https://xmoijbwuizxsgrpnidgg.storage.supabase.co/storage/v1/s3';
 const accessKeyId = process.env.S3_ACCESS_KEY_ID || '0168e890d6b143fe6deb64109ebbfce2';
@@ -24,8 +25,8 @@ function getS3Client() {
 }
 
 /**
- * Uploads a WebP base64 or buffer image to Supabase S3 Cloud Storage bucket.
- * Returns the public URL of the uploaded image file (or base64 fallback).
+ * Uploads a WebP base64 image to Supabase S3 Cloud Storage bucket.
+ * Returns the S3 URI (e.g. "s3://3-Eyed-Raven/screenshots/sc-xxx.webp").
  */
 export async function uploadScreenshotToS3(base64Data, filename) {
   try {
@@ -35,10 +36,8 @@ export async function uploadScreenshotToS3(base64Data, filename) {
       return base64Data;
     }
 
-    // Extract raw base64 data buffer if data URL is provided
     const base64Clean = base64Data.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Clean, 'base64');
-
     const key = `screenshots/${filename}.webp`;
 
     const command = new PutObjectCommand({
@@ -50,13 +49,51 @@ export async function uploadScreenshotToS3(base64Data, filename) {
 
     await client.send(command);
 
-    // Supabase Public Storage Object URL
-    const publicUrl = `https://xmoijbwuizxsgrpnidgg.supabase.co/storage/v1/object/public/${bucketName}/${key}`;
-    return publicUrl;
+    // Return S3 URI scheme for internal storage
+    return `s3://${bucketName}/${key}`;
 
   } catch (error) {
     console.error('Failed to upload screenshot to Supabase S3:', error);
     // Safe fallback to base64 inline data so screenshot capture never fails
     return base64Data;
   }
+}
+
+/**
+ * Resolves a stored image reference (s3:// URI, public URL, or base64 data URL)
+ * into a browser-renderable HTTP URL (presigned S3 URL or data URL).
+ */
+export async function resolveScreenshotUrl(imageData) {
+  if (!imageData) return null;
+
+  // Inline Data URL (mock/demo/fallback)
+  if (imageData.startsWith('data:image/')) {
+    return imageData;
+  }
+
+  try {
+    const client = getS3Client();
+    let key = '';
+
+    if (imageData.startsWith('s3://')) {
+      const match = imageData.match(/^s3:\/\/[^\/]+\/(.+)$/);
+      if (match) key = match[1];
+    } else if (imageData.includes('/screenshots/')) {
+      const parts = imageData.split('/screenshots/');
+      if (parts[1]) key = `screenshots/${parts[1].split('?')[0]}`;
+    }
+
+    if (key && client) {
+      const command = new GetObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+      });
+      // Generate 1-hour presigned GET URL for secure browser rendering
+      return await getSignedUrl(client, command, { expiresIn: 3600 });
+    }
+  } catch (err) {
+    console.error('Error resolving presigned URL for image:', err);
+  }
+
+  return imageData;
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb, purgeOldScreenshots } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
+import { resolveScreenshotUrl } from '@/lib/storage';
 
 export async function GET(request) {
   try {
@@ -46,7 +47,14 @@ export async function GET(request) {
     query += ` ORDER BY s.captured_at DESC LIMIT ? `;
     params.push(limit);
 
-    const screenshots = db.prepare(query).all(...params);
+    const rawScreenshots = db.prepare(query).all(...params);
+
+    const screenshots = await Promise.all(
+      rawScreenshots.map(async (s) => ({
+        ...s,
+        image_data: await resolveScreenshotUrl(s.image_data),
+      }))
+    );
 
     return NextResponse.json({ screenshots });
   } catch (error) {

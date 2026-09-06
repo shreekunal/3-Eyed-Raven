@@ -1,0 +1,56 @@
+import { NextResponse } from 'next/server';
+import { getDb, purgeOldScreenshots } from '@/lib/db';
+import { getSessionUser } from '@/lib/auth';
+
+export async function POST(request) {
+  try {
+    const user = await getSessionUser(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { session_id, increment_seconds = 30 } = await request.json();
+
+    if (!session_id) {
+      return NextResponse.json({ error: 'Session ID is required' }, { status: 400 });
+    }
+
+    const db = getDb();
+
+    // Verify session belongs to user and is ACTIVE
+    const session = db.prepare(`
+      SELECT * FROM work_sessions 
+      WHERE id = ? AND user_id = ? AND status = 'ACTIVE'
+    `).get(session_id, user.id);
+
+    if (!session) {
+      return NextResponse.json({ error: 'No active session found' }, { status: 404 });
+    }
+
+    // Increment duration
+    const safeIncrement = Math.min(Math.max(1, parseInt(increment_seconds, 10)), 300);
+    db.prepare(`
+      UPDATE work_sessions 
+      SET duration_seconds = duration_seconds + ? 
+      WHERE id = ?
+    `).run(safeIncrement, session_id);
+
+    const updated = db.prepare('SELECT duration_seconds FROM work_sessions WHERE id = ?').get(session_id);
+
+    // Opportunistic rolling 24-hour cleanup
+    purgeOldScreenshots(24);
+
+    // Fetch latest capture interval in case admin updated it
+    const intervalRow = db.prepare('SELECT value FROM settings WHERE key = ?').get('capture_interval_minutes');
+    const intervalMinutes = parseInt(intervalRow?.value || '30', 10);
+
+    return NextResponse.json({
+      success: true,
+      duration_seconds: updated.duration_seconds,
+      capture_interval_minutes: intervalMinutes,
+    });
+  } catch (error) {
+    console.error('Error during session heartbeat:', error);
+    return NextResponse.json({ error: 'Failed to process heartbeat' }, { status: 500 });
+  }
+}

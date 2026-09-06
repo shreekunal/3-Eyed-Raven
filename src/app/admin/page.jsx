@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import ScreenshotModal from '@/components/ScreenshotModal';
-import UserModal from '@/components/UserModal';
 import ShadcnSelect from '@/components/ShadcnSelect';
 import {
   Users, Activity, Camera, AlertTriangle, Loader2,
   Clock, Image, Settings, Download, RefreshCw, Shield,
-  FileSpreadsheet, Eye, LayoutDashboard, ChevronRight
+  FileSpreadsheet, Eye, LayoutDashboard, ChevronRight,
+  SlidersHorizontal, ArrowUp, ArrowDown, EyeOff, RotateCcw, X, Check, TrendingUp
 } from 'lucide-react';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -40,6 +40,17 @@ function statusClass(s) {
   }
 }
 
+import ProductivityAnalytics from '@/components/ProductivityAnalytics';
+import { Trophy } from 'lucide-react';
+
+const DEFAULT_NAV_ITEMS = [
+  { id: 'all', label: 'Overview', icon: LayoutDashboard, visible: true },
+  { id: 'analytics', label: 'Team Workload & Output', icon: Trophy, visible: true },
+  { id: 'workforce', label: 'Live Workforce', icon: Activity, visible: true },
+  { id: 'timeline', label: 'Screenshot Audit', icon: Camera, visible: true },
+  { id: 'tasks', label: 'Task Sheets', icon: FileSpreadsheet, visible: true },
+];
+
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
 function StatCard({ icon: Icon, label, value, color, loading }) {
@@ -66,11 +77,13 @@ export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'workforce' | 'timeline' | 'tasks'
+  const [activeTab, setActiveTab] = useState('all');
+  const [navItemsConfig, setNavItemsConfig] = useState(DEFAULT_NAV_ITEMS);
+  const [showCustomizerModal, setShowCustomizerModal] = useState(false);
+  const [tempConfig, setTempConfig] = useState(DEFAULT_NAV_ITEMS);
 
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(true);
-
   const [settings, setSettings] = useState(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
 
@@ -84,6 +97,24 @@ export default function AdminPage() {
   const [tasksLoading, setTasksLoading] = useState(true);
 
   const [selectedShot, setSelectedShot] = useState(null);
+
+  // Load custom sidebar preferences from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('raven_admin_sidebar_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Map icon components back
+        const merged = parsed.map(item => {
+          const def = DEFAULT_NAV_ITEMS.find(d => d.id === item.id);
+          return { ...item, icon: def ? def.icon : LayoutDashboard };
+        });
+        setNavItemsConfig(merged);
+      }
+    } catch (e) {
+      console.error('Failed to load sidebar config', e);
+    }
+  }, []);
 
   // Auth Guard
   useEffect(() => {
@@ -170,6 +201,43 @@ export default function AdminPage() {
     fetchTimeline(uid);
   };
 
+  // Customizer Modal Handlers
+  const openCustomizer = () => {
+    setTempConfig(JSON.parse(JSON.stringify(navItemsConfig.map(i => ({ id: i.id, label: i.label, visible: i.visible })))));
+    setShowCustomizerModal(true);
+  };
+
+  const toggleItemVisibility = (id) => {
+    setTempConfig(prev => prev.map(item => item.id === id ? { ...item, visible: !item.visible } : item));
+  };
+
+  const moveItem = (index, direction) => {
+    const newItems = [...tempConfig];
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= newItems.length) return;
+    const [moved] = newItems.splice(index, 1);
+    newItems.splice(targetIndex, 0, moved);
+    setTempConfig(newItems);
+  };
+
+  const saveCustomization = () => {
+    const updated = tempConfig.map(t => {
+      const def = DEFAULT_NAV_ITEMS.find(d => d.id === t.id);
+      return { ...t, icon: def ? def.icon : LayoutDashboard };
+    });
+    setNavItemsConfig(updated);
+    try {
+      localStorage.setItem('raven_admin_sidebar_config', JSON.stringify(tempConfig));
+    } catch (e) {
+      console.error('Failed to save sidebar config', e);
+    }
+    setShowCustomizerModal(false);
+  };
+
+  const resetCustomization = () => {
+    setTempConfig(DEFAULT_NAV_ITEMS.map(i => ({ id: i.id, label: i.label, visible: true })));
+  };
+
   const employees = users.filter(u => u.role === 'EMPLOYEE');
   const activeCount = employees.filter(u => u.current_status === 'ACTIVE').length;
   const openCritical = tasks.filter(
@@ -187,12 +255,7 @@ export default function AdminPage() {
     );
   }
 
-  const navItems = [
-    { id: 'all', label: 'Overview', icon: LayoutDashboard },
-    { id: 'workforce', label: 'Live Workforce', icon: Activity, badge: activeCount ? `${activeCount} Active` : null },
-    { id: 'timeline', label: 'Screenshot Audit', icon: Camera },
-    { id: 'tasks', label: 'Task Sheets', icon: FileSpreadsheet },
-  ];
+  const visibleNavItems = navItemsConfig.filter(i => i.visible);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -211,14 +274,24 @@ export default function AdminPage() {
         {/* ── Left Side Navigation Panel ──────────────────────────────────────── */}
         <aside className="w-full lg:w-60 flex-shrink-0">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-sm lg:sticky lg:top-20">
-            <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-              Quick Navigation
+            <div className="flex items-center justify-between px-3 py-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                Navigation
+              </span>
+              <button
+                onClick={openCustomizer}
+                className="text-slate-400 hover:text-blue-500 transition-colors p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                title="Customize Sidebar"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+              </button>
             </div>
             
             <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0">
-              {navItems.map(item => {
+              {visibleNavItems.map(item => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
+                const badge = item.id === 'workforce' && activeCount ? `${activeCount} Active` : null;
                 return (
                   <button
                     key={item.id}
@@ -233,13 +306,13 @@ export default function AdminPage() {
                       <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`} />
                       <span>{item.label}</span>
                     </div>
-                    {item.badge && (
+                    {badge && (
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
                         isActive
                           ? 'bg-white/20 text-white'
                           : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
                       }`}>
-                        {item.badge}
+                        {badge}
                       </span>
                     )}
                   </button>
@@ -298,6 +371,11 @@ export default function AdminPage() {
                 loading={tasksLoading}
               />
             </div>
+          )}
+
+          {/* Productivity Analytics & Team Heatmaps */}
+          {(activeTab === 'all' || activeTab === 'analytics') && (
+            <ProductivityAnalytics />
           )}
 
           {/* B. Live Workforce Cards */}
@@ -597,9 +675,108 @@ export default function AdminPage() {
         </main>
       </div>
 
-      {/* Modals */}
+      {/* Screenshot Modal */}
       {selectedShot && (
         <ScreenshotModal screenshot={selectedShot} onClose={() => setSelectedShot(null)} />
+      )}
+
+      {/* Sidebar Customizer Modal */}
+      {showCustomizerModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <SlidersHorizontal className="w-4 h-4 text-blue-500" />
+                Customize Side Navigation
+              </h3>
+              <button
+                onClick={() => setShowCustomizerModal(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Reorder or hide sections in your left navigation panel. Changes persist automatically.
+            </p>
+
+            <div className="space-y-2">
+              {tempConfig.map((item, idx) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50"
+                >
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => toggleItemVisibility(item.id)}
+                      className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                        item.visible
+                          ? 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400 border-blue-300 dark:border-blue-800'
+                          : 'bg-slate-200 text-slate-400 dark:bg-slate-700 dark:text-slate-500 border-slate-300 dark:border-slate-600'
+                      }`}
+                      title={item.visible ? 'Visible' : 'Hidden'}
+                    >
+                      {item.visible ? <Check className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                    </button>
+                    <span className={`text-xs font-semibold ${item.visible ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-slate-500 line-through'}`}>
+                      {item.label}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={idx === 0}
+                      onClick={() => moveItem(idx, -1)}
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-30 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                      title="Move Up"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={idx === tempConfig.length - 1}
+                      onClick={() => moveItem(idx, 1)}
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 disabled:opacity-30 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                      title="Move Down"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={resetCustomization}
+                className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset Defaults
+              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCustomizerModal(false)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={saveCustomization}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/20 transition-all cursor-pointer"
+                >
+                  Save Preferences
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

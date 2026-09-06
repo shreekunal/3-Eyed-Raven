@@ -3,6 +3,8 @@ import { getDb, purgeOldScreenshots } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
 import { resolveScreenshotUrl } from '@/lib/storage';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   try {
     const user = await getSessionUser(request);

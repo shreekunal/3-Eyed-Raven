@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
-import { getDb } from '@/lib/db';
+import { getDb, purgeStaleSessions } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
 import { resolveScreenshotUrl } from '@/lib/storage';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
   try {
@@ -11,6 +13,9 @@ export async function GET(request) {
     if (!currentUser || currentUser.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized: Admin access required' }, { status: 403 });
     }
+
+    // Purge any stale active sessions (>5 mins without heartbeat) before returning status
+    purgeStaleSessions(5);
 
     const db = getDb();
     const today = new Date().toISOString().split('T')[0];

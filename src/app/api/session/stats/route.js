@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDb, purgeStaleSessions } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
   try {
@@ -8,6 +10,9 @@ export async function GET(request) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Purge any stale active sessions (>5 mins without heartbeat)
+    purgeStaleSessions(5);
 
     const { searchParams } = new URL(request.url);
     const targetUserId = (user.role === 'ADMIN' && searchParams.get('userId')) 

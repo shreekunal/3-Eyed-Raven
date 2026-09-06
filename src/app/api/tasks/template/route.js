@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { generateSampleTemplateBuffer } from '@/lib/excel';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const buffer = generateSampleTemplateBuffer();

@@ -3,6 +3,8 @@ import { getDb } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
 import { exportTasksToExcelBuffer } from '@/lib/excel';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   try {
     const user = await getSessionUser(request);

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { getDb } from '@/lib/db';
+import { getDb, purgeStaleSessions } from '@/lib/db';
 import { getSessionUser } from '@/lib/auth';
 
 export async function POST(request) {
@@ -21,16 +21,11 @@ export async function POST(request) {
       );
     }
 
+    // Auto-close any stale active sessions (> 5 minutes without heartbeat)
+    purgeStaleSessions(5);
+
     const db = getDb();
     const today = new Date().toISOString().split('T')[0];
-
-    // Auto-close any orphaned active sessions from previous days OR stale active sessions (> 5 minutes without heartbeat)
-    db.prepare(`
-      UPDATE work_sessions
-      SET status = 'COMPLETED', end_time = CURRENT_TIMESTAMP
-      WHERE user_id = ? AND status = 'ACTIVE' 
-      AND (date != ? OR (last_heartbeat IS NOT NULL AND datetime(last_heartbeat, '+5 minutes') < datetime('now')))
-    `).run(user.id, today);
 
     // Check if there's already an active session for this user today
     let activeSession = db.prepare(`

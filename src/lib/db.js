@@ -165,4 +165,20 @@ export function purgeOldScreenshots(hours = 24) {
   return info.changes;
 }
 
+/**
+ * Auto-closes any active work sessions that haven't received a heartbeat in > timeoutMinutes (default: 5 minutes).
+ * End time is accurately capped to the last received heartbeat timestamp.
+ */
+export function purgeStaleSessions(timeoutMinutes = 5) {
+  const db = getDb();
+  const info = db.prepare(`
+    UPDATE work_sessions 
+    SET status = 'COMPLETED', 
+        end_time = COALESCE(last_heartbeat, start_time) 
+    WHERE status = 'ACTIVE' 
+    AND datetime(COALESCE(last_heartbeat, start_time), '+' || ? || ' minutes') < datetime('now')
+  `).run(timeoutMinutes);
+  return info.changes;
+}
+
 export default getDb;

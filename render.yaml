@@ -8,7 +8,7 @@ services:
     plan: starter
     region: singapore
     buildCommand: npm install && npm run build
-    startCommand: npm run start
+    startCommand: npm run db:seed && npm run start
     autoDeploy: true
     disk:
       name: raven-sqlite-data
